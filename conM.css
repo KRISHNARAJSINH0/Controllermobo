@@ -1,0 +1,501 @@
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        :root {
+            --xbox-green: #107C10;
+            --ps-blue: #006FCD;
+            --primary: #107C10;
+            --secondary: #9BF00B;
+            --accent: #00D4FF;
+            --dark-bg: #0e0e0e;
+            --surface: #1a1a1a;
+            --text: #FFFFFF;
+            --rgb-1: #FF2E63;
+            --rgb-2: #6C4DF6;
+            --rgb-3: #00D4FF;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .controller-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--surface);
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+        }
+
+        /* RGB Lighting Effect */
+        .rgb-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, 
+                rgba(255, 46, 99, 0.05) 0%, 
+                rgba(108, 77, 246, 0.05) 50%, 
+                rgba(0, 212, 255, 0.05) 100%);
+            border-radius: 30px;
+            pointer-events: none;
+            z-index: 1;
+            animation: rgbShift 8s infinite linear;
+        }
+
+        @keyframes rgbShift {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+
+        /* Header Section */
+        .header {
+            background: linear-gradient(90deg, rgba(16, 124, 16, 0.2), rgba(155, 240, 11, 0.2));
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .xbox-logo {
+            font-size: 28px;
+            color: var(--primary);
+            text-shadow: 0 0 10px rgba(16, 124, 16, 0.7);
+        }
+
+        .brand-text {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .connected {
+            color: var(--secondary);
+        }
+
+        .battery {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Main Controller Layout */
+        .controller-body {
+            display: flex;
+            padding: 30px;
+            gap: 30px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Left Side - D-Pad and Left Stick */
+        .left-side {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .d-pad-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .d-pad-row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .d-pad-btn {
+            width: 50px;
+            height: 50px;
+            background: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            color: #aaa;
+            font-size: 18px;
+        }
+
+        .d-pad-btn:active {
+            background: var(--primary);
+            transform: scale(0.95);
+            color: white;
+        }
+
+        .d-pad-center {
+            width: 50px;
+            height: 50px;
+            background: #222;
+            border-radius: 8px;
+        }
+
+        .stick-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stick {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .stick-head {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #444, #222);
+            cursor: move;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .stick-label {
+            font-size: 14px;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Center Section - Menu Buttons */
+        .center-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .menu-buttons {
+            display: flex;
+            gap: 30px;
+        }
+
+        .menu-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            font-size: 14px;
+        }
+
+        .xbox-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .view-btn {
+            background: linear-gradient(135deg, #444, #222);
+            color: #aaa;
+        }
+
+        .menu-btn:active {
+            transform: scale(0.9);
+        }
+
+        .touchpad {
+            width: 200px;
+            height: 100px;
+            background: linear-gradient(135deg, #2a2a2a, #1a1a1a);
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+        }
+
+        .touchpad:active {
+            background: linear-gradient(135deg, #333, #222);
+        }
+
+        /* Right Side - Action Buttons and Right Stick */
+        .right-side {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            justify-items: center;
+        }
+
+        .action-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 700;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .action-btn:active {
+            transform: scale(0.9);
+        }
+
+        .btn-a {
+            background: linear-gradient(135deg, #00BA34, #00E04E);
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        .btn-b {
+            background: linear-gradient(135deg, #FF2E63, #FF5C8D);
+            grid-column: 1;
+            grid-row: 1;
+        }
+
+        .btn-x {
+            background: linear-gradient(135deg, #006FCD, #0091FF);
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .btn-y {
+            background: linear-gradient(135deg, #FFB300, #FFD54F);
+            grid-column: 2;
+            grid-row: 1;
+        }
+
+        /* Trigger Section */
+        .triggers {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px 20px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .trigger {
+            width: 120px;
+            height: 40px;
+            background: linear-gradient(to bottom, #333, #222);
+            border-radius: 20px 20px 0 0;
+            position: relative;
+            box-shadow: 0 -5px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #aaa;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+        }
+
+        .trigger:active {
+            background: linear-gradient(to bottom, var(--primary), #0a5a0a);
+            color: white;
+        }
+
+        .trigger:before {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 10px;
+            right: 10px;
+            height: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        /* Footer Section */
+        .footer {
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            z-index: 2;
+        }
+
+        .profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .profile-pic {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .profile-name {
+            font-weight: 600;
+        }
+
+        .settings {
+            display: flex;
+            gap: 15px;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: #aaa;
+        }
+
+        .icon-btn:active {
+            background: var(--primary);
+            color: white;
+            transform: scale(0.95);
+        }
+
+        /* RGB Mode Toggle */
+        .rgb-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 3;
+        }
+
+        .toggle-btn {
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .toggle-btn:active {
+            background: rgba(16, 124, 16, 0.5);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .controller-body {
+                flex-direction: column;
+                padding: 20px;
+                gap: 20px;
+            }
+            
+            .left-side, .right-side {
+                flex-direction: row;
+                justify-content: space-around;
+            }
+            
+            .center-section {
+                order: -1;
+            }
+            
+            .action-buttons {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 15px;
+            }
+            
+            .btn-a { grid-column: 4; grid-row: 2; }
+            .btn-b { grid-column: 3; grid-row: 1; }
+            .btn-x { grid-column: 1; grid-row: 2; }
+            .btn-y { grid-column: 2; grid-row: 1; }
+        }
+
+        /* Animation for RGB effect */
+        @keyframes pulse {
+            0% { opacity: 0.7; }
+            50% { opacity: 1; }
+            100% { opacity: 0.7; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }

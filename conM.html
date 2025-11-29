@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XBOX Pro Controller</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="conM.css">
+    
+</head>
+<body>
+    <div class="controller-container">
+        <!-- RGB Lighting Overlay -->
+        <div class="rgb-overlay" id="rgbOverlay"></div>
+        
+        <!-- RGB Toggle -->
+        <div class="rgb-toggle">
+            <div class="toggle-btn" id="rgbToggle">
+                <i class="fas fa-palette"></i>
+                RGB Mode
+            </div>
+        </div>
+        
+        <!-- Header -->
+        <div class="header">
+            <div class="brand">
+                <div class="xbox-logo">
+                    <i class="fab fa-xbox"></i>
+                </div>
+                <div class="brand-text">XBOX PRO CONTROLLER</div>
+            </div>
+            <div class="connection-status">
+                <div class="battery">
+                    <i class="fas fa-battery-three-quarters"></i>
+                    <span>82%</span>
+                </div>
+                <div class="connected pulse">
+                    <i class="fas fa-circle"></i>
+                    Connected
+                </div>
+            </div>
+        </div>
+        
+        <!-- Triggers -->
+        <div class="triggers">
+            <div class="trigger">L2</div>
+            <div class="trigger">R2</div>
+        </div>
+        
+        <!-- Main Controller Body -->
+        <div class="controller-body">
+            <!-- Left Side -->
+            <div class="left-side">
+                <div class="d-pad-container">
+                    <div class="d-pad-row">
+                        <div class="d-pad-btn"></div>
+                        <div class="d-pad-btn"><i class="fas fa-chevron-up"></i></div>
+                        <div class="d-pad-btn"></div>
+                    </div>
+                    <div class="d-pad-row">
+                        <div class="d-pad-btn"><i class="fas fa-chevron-left"></i></div>
+                        <div class="d-pad-center"></div>
+                        <div class="d-pad-btn"><i class="fas fa-chevron-right"></i></div>
+                    </div>
+                    <div class="d-pad-row">
+                        <div class="d-pad-btn"></div>
+                        <div class="d-pad-btn"><i class="fas fa-chevron-down"></i></div>
+                        <div class="d-pad-btn"></div>
+                    </div>
+                </div>
+                
+                <div class="stick-container">
+                    <div class="stick">
+                        <div class="stick-head" id="leftStick"></div>
+                    </div>
+                    <div class="stick-label">Left Stick</div>
+                </div>
+            </div>
+            
+            <!-- Center Section -->
+            <div class="center-section">
+                <div class="menu-buttons">
+                    <div class="menu-btn view-btn">
+                        <i class="fas fa-bars"></i>
+                    </div>
+                    <div class="menu-btn xbox-btn">
+                        <i class="fab fa-xbox"></i>
+                    </div>
+                </div>
+                
+                <div class="touchpad">
+                    Touch Pad
+                </div>
+            </div>
+            
+            <!-- Right Side -->
+            <div class="right-side">
+                <div class="action-buttons">
+                    <div class="action-btn btn-a">A</div>
+                    <div class="action-btn btn-b">B</div>
+                    <div class="action-btn btn-x">X</div>
+                    <div class="action-btn btn-y">Y</div>
+                </div>
+                
+                <div class="stick-container">
+                    <div class="stick">
+                        <div class="stick-head" id="rightStick"></div>
+                    </div>
+                    <div class="stick-label">Right Stick</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="profile">
+                <div class="profile-pic">JD</div>
+                <div class="profile-name">JohnDoe_Game</div>
+            </div>
+            
+            <div class="settings">
+                <div class="icon-btn">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="icon-btn">
+                    <i class="fas fa-volume-up"></i>
+                </div>
+                <div class="icon-btn">
+                    <i class="fas fa-home"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // RGB Toggle
+            const rgbToggle = document.getElementById('rgbToggle');
+            const rgbOverlay = document.getElementById('rgbOverlay');
+            let rgbEnabled = true;
+            
+            rgbToggle.addEventListener('click', function() {
+                rgbEnabled = !rgbEnabled;
+                if (rgbEnabled) {
+                    rgbOverlay.style.display = 'block';
+                    rgbToggle.innerHTML = '<i class="fas fa-palette"></i> RGB Mode';
+                } else {
+                    rgbOverlay.style.display = 'none';
+                    rgbToggle.innerHTML = '<i class="fas fa-palette"></i> RGB Off';
+                }
+            });
+            
+            // Button press effects
+            const buttons = document.querySelectorAll('.d-pad-btn, .action-btn, .menu-btn, .trigger, .touchpad, .icon-btn');
+            
+            buttons.forEach(button => {
+                button.addEventListener('mousedown', function() {
+                    this.style.transform = 'scale(0.95)';
+                    this.style.opacity = '0.8';
+                });
+                
+                button.addEventListener('mouseup', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.opacity = '1';
+                });
+                
+                button.addEventListener('touchstart', function() {
+                    this.style.transform = 'scale(0.95)';
+                    this.style.opacity = '0.8';
+                });
+                
+                button.addEventListener('touchend', function() {
+                    this.style.transform = 'scale(1)';
+                    this.style.opacity = '1';
+                });
+            });
+            
+            // Joystick movement
+            const leftStick = document.getElementById('leftStick');
+            const rightStick = document.getElementById('rightStick');
+            
+            setupJoystick(leftStick);
+            setupJoystick(rightStick);
+            
+            function setupJoystick(stick) {
+                let isDragging = false;
+                
+                stick.addEventListener('mousedown', startDrag);
+                document.addEventListener('mousemove', drag);
+                document.addEventListener('mouseup', stopDrag);
+                
+                stick.addEventListener('touchstart', startDrag);
+                document.addEventListener('touchmove', drag);
+                document.addEventListener('touchend', stopDrag);
+                
+                function startDrag(e) {
+                    isDragging = true;
+                    e.preventDefault();
+                }
+                
+                function drag(e) {
+                    if (!isDragging) return;
+                    
+                    const container = stick.parentElement;
+                    const containerRect = container.getBoundingClientRect();
+                    const centerX = containerRect.left + containerRect.width / 2;
+                    const centerY = containerRect.top + containerRect.height / 2;
+                    
+                    let clientX, clientY;
+                    
+                    if (e.type === 'mousemove') {
+                        clientX = e.clientX;
+                        clientY = e.clientY;
+                    } else if (e.type === 'touchmove') {
+                        clientX = e.touches[0].clientX;
+                        clientY = e.touches[0].clientY;
+                    }
+                    
+                    const deltaX = clientX - centerX;
+                    const deltaY = clientY - centerY;
+                    
+                    // Limit movement to joystick boundaries
+                    const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), 30);
+                    const angle = Math.atan2(deltaY, deltaX);
+                    
+                    const newX = Math.cos(angle) * distance;
+                    const newY = Math.sin(angle) * distance;
+                    
+                    stick.style.transform = `translate(${newX}px, ${newY}px)`;
+                }
+                
+                function stopDrag() {
+                    isDragging = false;
+                    stick.style.transform = 'translate(0, 0)';
+                }
+            }
+        });
+    </script>
+</body>
+</html>
