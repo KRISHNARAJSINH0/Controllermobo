@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hand Controlled Galaxy</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: sans-serif; }
+        canvas { display: block; }
+        
+        /* The webcam video is hidden, we only need the data */
+        #input_video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 1px; height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: #00ffcc;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #00ffcc;
+            pointer-events: none;
+            max-width: 300px;
+        }
+        
+        h1 { margin: 0 0 10px 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 2px; }
+        p { font-size: 0.9rem; margin: 5px 0; color: #ddd; }
+        .status { font-weight: bold; color: #ff0055; animation: pulse 1s infinite; }
+        .active { color: #00ff00; animation: none; }
+
+        @keyframes pulse { 0% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        /* A small preview of the hand skeleton so you know it's working */
+        #preview {
+            position: absolute;
+            bottom: 20px; right: 20px;
+            width: 200px; height: 150px;
+            background: rgba(0,0,0,0.5);
+            border: 1px solid #333;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+    </style>
+
+    <!-- Load MediaPipe Hands (Global Scripts) -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <video id="input_video"></video>
+    <canvas id="preview"></canvas>
+
+    <div id="ui">
+        <h1>Galaxy Controller</h1>
+        <p id="status_text" class="status">Waiting for Camera...</p>
+        <hr style="border: 0; border-top: 1px solid #444; margin: 10px 0;">
+        <p>🖐 <strong>Move Hand:</strong> Rotate View</p>
+        <p>👌 <strong>Pinch:</strong> Zoom In / Out</p>
+    </div>
+
+    <!-- Three.js Module -->
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+        // ==========================================
+        // 1. THREE.JS SCENE SETUP
+        // ==========================================
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Initial position
+        camera.position.set(0, 50, 200);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // ==========================================
+        // 2. CREATE THE UNIVERSE (Spiral Galaxy)
+        // ==========================================
+        const parameters = {
+            count: 40000,
+            size: 0.5,
+            radius: 200,
+            branches: 4,
+            spin: 1.2,
+            randomness: 0.6,
+            insideColor: '#ff6030', // Orange core
+            outsideColor: '#1b3984' // Blue edges
+        };
+
+        let galaxyGeometry = null;
+        let galaxyMaterial = null;
+        let galaxyPoints = null;
+
+        // Texture for stars
+        function getStarTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(0.4, 'rgba(255,255,255,0.4)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const texture = getStarTexture();
+
+        function generateGalaxy() {
+            if (galaxyPoints) scene.remove(galaxyPoints);
+
+            const positions = new Float32Array(parameters.count * 3);
+            const colors = new Float32Array(parameters.count * 3);
+
+            const colorInside = new THREE.Color(parameters.insideColor);
+            const colorOutside = new THREE.Color(parameters.outsideColor);
+
+            for(let i = 0; i < parameters.count; i++) {
+                const i3 = i * 3;
+                const radius = Math.random() * parameters.radius;
+                const spinAngle = radius * parameters.spin * 0.01;
+                const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2;
+
+                const randomX = (Math.random() - 0.5) * parameters.randomness * radius * 0.5;
+                const randomY = (Math.random() - 0.5) * parameters.randomness * radius * 0.5;
+                const randomZ = (Math.random() - 0.5) * parameters.randomness * radius * 0.5;
+
+                positions[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+                positions[i3 + 1] = randomY * 0.5; 
+                positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+                const mixedColor = colorInside.clone();
+                mixedColor.lerp(colorOutside, radius / parameters.radius);
+
+                colors[i3] = mixedColor.r;
+                colors[i3 + 1] = mixedColor.g;
+                colors[i3 + 2] = mixedColor.b;
+            }
+
+            galaxyGeometry = new THREE.BufferGeometry();
+            galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            galaxyMaterial = new THREE.PointsMaterial({
+                size: parameters.size,
+                sizeAttenuation: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                vertexColors: true,
+                map: texture,
+                transparent: true
+            });
+
+            galaxyPoints = new THREE.Points(galaxyGeometry, galaxyMaterial);
+            scene.add(galaxyPoints);
+        }
+
+        generateGalaxy();
+
+        // ==========================================
+        // 3. MEDIAPIPE HAND TRACKING LOGIC
+        // ==========================================
+        const videoElement = document.getElementById('input_video');
+        const previewCanvas = document.getElementById('preview');
+        const previewCtx = previewCanvas.getContext('2d');
+        const statusText = document.getElementById('status_text');
+
+        // Control Variables
+        let handX = 0.5; // 0 to 1 (screen width)
+        let handY = 0.5; // 0 to 1 (screen height)
+        let pinchDistance = 1; // Used for zoom
+        let isHandDetected = false;
+
+        function onResults(results) {
+            // Draw the preview for the user
+            previewCtx.save();
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            previewCtx.drawImage(results.image, 0, 0, previewCanvas.width, previewCanvas.height);
+            
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                isHandDetected = true;
+                statusText.innerText = "Hand Detected - Active";
+                statusText.className = "status active";
+
+                const landmarks = results.multiHandLandmarks[0];
+
+                // Draw skeleton on preview
+                drawConnectors(previewCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+                drawLandmarks(previewCtx, landmarks, {color: '#FF0000', lineWidth: 1});
+
+                // --- GESTURE LOGIC ---
+                
+                // 1. ROTATION: Use Index Finger Tip (Landmark 8) for X/Y tracking
+                const indexFinger = landmarks[8];
+                // Mirror X because webcam is mirrored
+                handX = 1.0 - indexFinger.x; 
+                handY = indexFinger.y;
+
+                // 2. ZOOM: Calculate distance between Thumb (4) and Index (8)
+                const thumbTip = landmarks[4];
+                const indexTip = landmarks[8];
+
+                // Simple 2D distance formula
+                const dx = thumbTip.x - indexTip.x;
+                const dy = thumbTip.y - indexTip.y;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+
+                // Map distance to a usable zoom factor
+                // Typical pinch distance is 0.02 (closed) to 0.2 (open)
+                pinchDistance = distance; 
+            } else {
+                isHandDetected = false;
+                statusText.innerText = "Show Hand to Control";
+                statusText.className = "status";
+            }
+            previewCtx.restore();
+        }
+
+        // Initialize MediaPipe Hands
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        // Start Camera
+        const cameraUtils = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({image: videoElement});
+            },
+            width: 320,
+            height: 240
+        });
+        cameraUtils.start();
+
+
+        // ==========================================
+        // 4. ANIMATION LOOP
+        // ==========================================
+        const clock = new THREE.Clock();
+        
+        // Smooth transitions variables
+        let currentAngleX = 0;
+        let currentAngleY = 0;
+        let currentZoom = 200;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+
+            // Self-rotation of galaxy
+            galaxyPoints.rotation.y += 0.05 * dt;
+
+            // --- APPLY HAND CONTROLS ---
+            if (isHandDetected) {
+                // 1. Rotation logic (Map hand pos to angles)
+                // Center is 0.5. Range is -0.5 to 0.5
+                const targetRotX = (handY - 0.5) * 2; // Vertical Tilt
+                const targetRotY = (handX - 0.5) * 4; // Horizontal Pan
+
+                // Lerp for smoothness (ease-out)
+                currentAngleX += (targetRotX - currentAngleX) * 0.1;
+                currentAngleY += (targetRotY - currentAngleY) * 0.1;
+
+                // 2. Zoom logic (Map pinch distance)
+                // Open hand (~0.2) = Zoom In (Close)
+                // Closed pinch (~0.02) = Zoom Out (Far)
+                // We map distance 0.05 -> 0.3 to Zoom 400 -> 50
+                // Inverting logic: Open hand = Move Camera Closer (Zoom In)
+                
+                // Clamp pinch to reasonable values
+                const clampedPinch = Math.max(0.02, Math.min(0.3, pinchDistance));
+                // Map: 0.02 -> 400 (Far), 0.3 -> 50 (Close)
+                const targetZoom = 400 - ((clampedPinch - 0.02) / 0.28) * 350;
+
+                currentZoom += (targetZoom - currentZoom) * 0.1;
+
+            } else {
+                // Idle animation if no hand
+                currentAngleX += (0 - currentAngleX) * 0.05;
+                currentAngleY += (Math.sin(clock.getElapsedTime()*0.5)*0.5 - currentAngleY) * 0.05;
+            }
+
+            // Apply calculated transforms to Camera
+            // We use polar coordinates logic or simpler orbit logic
+            
+            // X-axis orbit
+            const r = currentZoom;
+            camera.position.x = r * Math.sin(currentAngleY);
+            camera.position.z = r * Math.cos(currentAngleY);
+            camera.position.y = currentAngleX * 100 + 50; // Add elevation
+
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        }
+
+        // Resize support
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+    </script>
+</body>
+</html>

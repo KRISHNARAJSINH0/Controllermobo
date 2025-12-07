@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hand Controlled Galaxy PRO</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: system-ui, sans-serif; }
+        canvas { display: block; }
+        
+        #input_video {
+            position: absolute;
+            top: 0; left: 0;
+            width: 1px; height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px; left: 20px;
+            color: #e0ffee;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid #00ffcc;
+            pointer-events: auto;
+            max-width: 320px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 20px rgba(0,255,204,0.15);
+        }
+        
+        h1 { 
+            margin: 0 0 6px 0; 
+            font-size: 1rem; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            color: #00ffcc;
+        }
+        h2 {
+            margin: 8px 0 4px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8af7ff;
+        }
+        p { font-size: 0.8rem; margin: 4px 0; color: #c7e6dd; }
+
+        .status { 
+            font-weight: 600; 
+            color: #ff0055; 
+            animation: pulse 1s infinite; 
+            font-size: 0.8rem;
+        }
+        .active { color: #00ff00; animation: none; }
+        .gesture {
+            font-size: 0.8rem;
+            margin-top: 4px;
+            color: #ffd966;
+        }
+
+        @keyframes pulse { 
+            0% { opacity: 0.5; } 
+            100% { opacity: 1; } 
+        }
+        
+        #preview {
+            position: absolute;
+            bottom: 20px; right: 20px;
+            width: 220px; height: 160px;
+            background: rgba(0,0,0,0.6);
+            border-radius: 10px;
+            border: 1px solid #333;
+            transform: scaleX(-1);
+            overflow: hidden;
+        }
+
+        .control-group {
+            margin: 6px 0;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 0.75rem;
+        }
+        .control-row label {
+            flex: 1;
+        }
+        .control-row input[type="range"] {
+            flex: 1.2;
+        }
+        .control-row input[type="color"] {
+            width: 32px;
+            height: 18px;
+            border-radius: 4px;
+            border: 1px solid #222;
+            padding: 0;
+            background: transparent;
+        }
+        .toggles {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 4px 8px;
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+        .toggles label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .toggles input {
+            margin: 0;
+        }
+
+        .hint {
+            font-size: 0.7rem;
+            color: #aaaaaa;
+            margin-top: 4px;
+        }
+    </style>
+
+    <!-- MediaPipe Hands -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+    <video id="input_video"></video>
+    <canvas id="preview" width="220" height="160"></canvas>
+
+    <div id="ui">
+        <h1>Galaxy Controller PRO</h1>
+        <p id="status_text" class="status">Waiting for Camera...</p>
+        <p id="gesture_text" class="gesture">Gesture: None</p>
+        <hr style="border: 0; border-top: 1px solid #244; margin: 8px 0;">
+
+        <h2>Gestures</h2>
+        <p>✋ Open Hand: Rotate View</p>
+        <p>🤏 Pinch: Zoom & Gravity Pull</p>
+        <p>👊 Fist: Freeze / Unfreeze</p>
+        <p>👍 Thumbs Up: Cycle Galaxy Colors</p>
+        <p>👐 Two Hands: Global Zoom</p>
+
+        <h2>Galaxy Controls</h2>
+        <div class="control-group">
+            <div class="control-row">
+                <label for="star_count">Star Count</label>
+                <input id="star_count" type="range" min="5000" max="80000" step="5000" value="40000">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <div class="control-row">
+                <label for="core_color">Core Color</label>
+                <input id="core_color" type="color" value="#ff6030">
+            </div>
+            <div class="control-row">
+                <label for="edge_color">Edge Color</label>
+                <input id="edge_color" type="color" value="#1b3984">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h2>Effects</h2>
+            <div class="toggles">
+                <label><input type="checkbox" id="toggle_spin" checked> Spin</label>
+                <label><input type="checkbox" id="toggle_nebula" checked> Nebula</label>
+                <label><input type="checkbox" id="toggle_shooting" checked> Shooting Stars</label>
+                <label><input type="checkbox" id="toggle_gravity" checked> Gravity Pull</label>
+            </div>
+            <p class="hint">Tip: Try pinch near the galaxy to "pull" stars.</p>
+        </div>
+    </div>
+
+    <!-- Three.js Module -->
+    <script type="module">
+        import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';
+
+        // ==========================================
+        // 1. THREE.JS SCENE SETUP
+        // ==========================================
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.001);
+
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            2000
+        );
+        camera.position.set(0, 50, 200);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // Hand-orbit visual sphere
+        const handSphereGeom = new THREE.SphereGeometry(4, 16, 16);
+        const handSphereMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.7 });
+        const handSphere = new THREE.Mesh(handSphereGeom, handSphereMat);
+        scene.add(handSphere);
+        handSphere.visible = false;
+
+        // ==========================================
+        // 2. GALAXY + EFFECTS
+        // ==========================================
+        const parameters = {
+            count: 40000,
+            size: 0.5,
+            radius: 200,
+            branches: 4,
+            spin: 1.2,
+            randomness: 0.6,
+            insideColor: '#ff6030',
+            outsideColor: '#1b3984'
+        };
+
+        let galaxyGeometry = null;
+        let galaxyMaterial = null;
+        let galaxyPoints = null;
+
+        // Nebula   
+        let nebulaPoints = null;
+        // Shooting stars
+        const shootingStars = [];
+        const shootingStarCount = 20;
+
+        // Star texture
+        function getStarTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32; canvas.height = 32;
+            const ctx = canvas.getContext('2d');
+            const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(0.4, 'rgba(255,255,255,0.4)');
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 32, 32);
+            return new THREE.CanvasTexture(canvas);
+        }
+
+        const texture = getStarTexture();
+
+        function generateGalaxy() {
+            if (galaxyPoints) {
+                galaxyGeometry.dispose();
+                galaxyMaterial.dispose();
+                scene.remove(galaxyPoints);
+            }
+
+            const positions = new Float32Array(parameters.count * 3);
+            const colors = new Float32Array(parameters.count * 3);
+
+            const colorInside = new THREE.Color(parameters.insideColor);
+            const colorOutside = new THREE.Color(parameters.outsideColor);
+
+            for (let i = 0; i < parameters.count; i++) {
+                const i3 = i * 3;
+                const radius = Math.random() * parameters.radius;
+                const spinAngle = radius * parameters.spin * 0.01;
+                const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2;
+
+                const randomX = (Math.random() - 0.5) * parameters.randomness * radius * 0.5;
+                const randomY = (Math.random() - 0.5) * parameters.randomness * radius * 0.5;
+                const randomZ = (Math.random() - 0.5) * parameters.randomness * radius * 0.5;
+
+                positions[i3]     = Math.cos(branchAngle + spinAngle) * radius + randomX;
+                positions[i3 + 1] = randomY * 0.5;
+                positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+                const mixedColor = colorInside.clone();
+                mixedColor.lerp(colorOutside, radius / parameters.radius);
+
+                colors[i3]     = mixedColor.r;
+                colors[i3 + 1] = mixedColor.g;
+                colors[i3 + 2] = mixedColor.b;
+            }
+
+            galaxyGeometry = new THREE.BufferGeometry();
+            galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            galaxyMaterial = new THREE.PointsMaterial({
+                size: parameters.size,
+                sizeAttenuation: true,
+                depthWrite: false,
+                blending: THREE.AdditiveBlending,
+                vertexColors: true,
+                map: texture,
+                transparent: true
+            });
+
+            galaxyPoints = new THREE.Points(galaxyGeometry, galaxyMaterial);
+            scene.add(galaxyPoints);
+        }
+
+        function generateNebula() {
+            if (nebulaPoints) {
+                nebulaPoints.geometry.dispose();
+                nebulaPoints.material.dispose();
+                scene.remove(nebulaPoints);
+            }
+
+            const nebulaCount = 3000;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(nebulaCount * 3);
+            const colors = new Float32Array(nebulaCount * 3);
+
+            const colorCenter = new THREE.Color(0x441155);
+            const colorOuter = new THREE.Color(0x000000);
+
+            for (let i = 0; i < nebulaCount; i++) {
+                const i3 = i * 3;
+                const r = Math.random() * parameters.radius * 1.2;
+                const angle = Math.random() * Math.PI * 2;
+
+                positions[i3]     = Math.cos(angle) * r * 0.6;
+                positions[i3 + 1] = (Math.random() - 0.5) * 40;
+                positions[i3 + 2] = Math.sin(angle) * r * 0.6;
+
+                const mix = r / (parameters.radius * 1.2);
+                const col = colorCenter.clone().lerp(colorOuter, mix);
+
+                colors[i3]     = col.r;
+                colors[i3 + 1] = col.g;
+                colors[i3 + 2] = col.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 4,
+                sizeAttenuation: true,
+                depthWrite: false,
+                transparent: true,
+                opacity: 0.4,
+                blending: THREE.AdditiveBlending,
+                vertexColors: true
+            });
+
+            nebulaPoints = new THREE.Points(geometry, material);
+            scene.add(nebulaPoints);
+        }
+
+        function createShootingStars() {
+            for (const s of shootingStars) {
+                scene.remove(s.mesh);
+            }
+            shootingStars.length = 0;
+
+            const geom = new THREE.BufferGeometry();
+            const positions = new Float32Array(2 * 3); // line of 2 points
+            geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            for (let i = 0; i < shootingStarCount; i++) {
+                const mat = new THREE.LineBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const line = new THREE.Line(geom.clone(), mat);
+                resetShootingStar(line);
+                shootingStars.push({ mesh: line, speed: 100 + Math.random() * 100 });
+                scene.add(line);
+            }
+        }
+
+        function resetShootingStar(line) {
+            const positions = line.geometry.attributes.position.array;
+            const startRadius = parameters.radius * (1.2 + Math.random() * 0.4);
+            const angle = Math.random() * Math.PI * 2;
+            const height = (Math.random() - 0.5) * 100;
+
+            const x = Math.cos(angle) * startRadius;
+            const z = Math.sin(angle) * startRadius;
+            const y = height;
+
+            const dx = -x * 0.4;
+            const dz = -z * 0.4;
+            const dy = -y * 0.1;
+
+            positions[0] = x;
+            positions[1] = y;
+            positions[2] = z;
+            positions[3] = x + dx;
+            positions[4] = y + dy;
+            positions[5] = z + dz;
+
+            line.geometry.attributes.position.needsUpdate = true;
+        }
+
+        generateGalaxy();
+        generateNebula();
+        createShootingStars();
+
+        // ==========================================
+        // 3. MEDIAPIPE HAND TRACKING & GESTURES
+        // ==========================================
+        const videoElement = document.getElementById('input_video');
+        const previewCanvas = document.getElementById('preview');
+        const previewCtx = previewCanvas.getContext('2d');
+        const statusText = document.getElementById('status_text');
+        const gestureText = document.getElementById('gesture_text');
+
+        let handX = 0.5;
+        let handY = 0.5;
+        let pinchDistance = 1;
+        let isHandDetected = false;
+        let twoHandsDetected = false;
+        let twoHandDistance = 0;
+        let freezeRotation = false;
+        let lastThumbUpTime = 0;
+        let gestureLabel = 'None';
+
+        const hands = new Hands({locateFile: (file) => {
+            return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`;
+        }});
+
+        hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(onResults);
+
+        function avgPoint(landmarks) {
+            let x = 0, y = 0;
+            for (const lm of landmarks) { x += lm.x; y += lm.y; }
+            return { x: x / landmarks.length, y: y / landmarks.length };
+        }
+
+        function onResults(results) {
+            previewCtx.save();
+            previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+            previewCtx.drawImage(results.image, 0, 0, previewCanvas.width, previewCanvas.height);
+
+            isHandDetected = !!(results.multiHandLandmarks && results.multiHandLandmarks.length > 0);
+            twoHandsDetected = !!(results.multiHandLandmarks && results.multiHandLandmarks.length > 1);
+
+            if (isHandDetected) {
+                statusText.innerText = "Hand Detected - Active";
+                statusText.className = "status active";
+
+                const landmarks0 = results.multiHandLandmarks[0];
+                drawConnectors(previewCtx, landmarks0, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 2});
+                drawLandmarks(previewCtx, landmarks0, {color: '#FF0000', lineWidth: 1});
+
+                // Use hand 1 index finger for rotation
+                const indexFinger = landmarks0[8];
+                handX = 1.0 - indexFinger.x;
+                handY = indexFinger.y;
+
+                // Pinch distance (thumb vs index)
+                const thumbTip = landmarks0[4];
+                const indexTip = landmarks0[8];
+                const dx = thumbTip.x - indexTip.x;
+                const dy = thumbTip.y - indexTip.y;
+                pinchDistance = Math.sqrt(dx * dx + dy * dy);
+
+                // Open / Fist measure
+                const wrist = landmarks0[0];
+                const tipIds = [4, 8, 12, 16, 20];
+                let openness = 0;
+                tipIds.forEach(id => {
+                    const t = landmarks0[id];
+                    const ddx = t.x - wrist.x;
+                    const ddy = t.y - wrist.y;
+                    openness += Math.sqrt(ddx*ddx + ddy*ddy);
+                });
+                openness /= tipIds.length;
+
+                // Thumbs up detection (very simple heuristic)
+                const thumbIp = landmarks0[3];
+                const indexMcp = landmarks0[5];
+                let isThumbUp = false;
+                if (
+                    thumbTip.y < thumbIp.y &&      // thumb pointing upwards
+                    thumbTip.y < indexMcp.y &&     // above index base
+                    pinchDistance > 0.1 &&         // not pinching
+                    openness < 0.22                // other fingers likely folded
+                ) {
+                    isThumbUp = true;
+                }
+
+                // Simple gesture classification
+                const now = performance.now();
+                const pinchClose = pinchDistance < 0.05;
+                const isOpenHand = openness > 0.18;
+                const isFist = openness < 0.09;
+
+                if (isFist) {
+                    freezeRotation = !freezeRotation;
+                    gestureLabel = 'Fist (Freeze Toggle)';
+                } else if (isThumbUp && now - lastThumbUpTime > 800) {
+                    lastThumbUpTime = now;
+                    cycleColors();
+                    gestureLabel = 'Thumbs Up (Color Cycle)';
+                } else if (pinchClose) {
+                    gestureLabel = 'Pinch (Zoom & Gravity)';
+                } else if (isOpenHand) {
+                    gestureLabel = 'Open Hand (Rotate)';
+                } else {
+                    gestureLabel = 'Neutral';
+                }
+
+                // If two hands detected – calculate their distance
+                if (twoHandsDetected) {
+                    const landmarks1 = results.multiHandLandmarks[1];
+                    drawConnectors(previewCtx, landmarks1, HAND_CONNECTIONS, {color: '#00FFAA', lineWidth: 2});
+                    drawLandmarks(previewCtx, landmarks1, {color: '#FFFF00', lineWidth: 1});
+
+                    const c0 = avgPoint(landmarks0);
+                    const c1 = avgPoint(landmarks1);
+                    const dx2 = c0.x - c1.x;
+                    const dy2 = c0.y - c1.y;
+                    twoHandDistance = Math.sqrt(dx2*dx2 + dy2*dy2);
+                } else {
+                    twoHandDistance = 0;
+                }
+
+            } else {
+                statusText.innerText = "Show Hand to Control";
+                statusText.className = "status";
+                gestureLabel = 'None';
+            }
+
+            gestureText.innerText = `Gesture: ${gestureLabel}`;
+            previewCtx.restore();
+        }
+
+        const cameraUtils = new Camera(videoElement, {
+            onFrame: async () => {
+                await hands.send({ image: videoElement });
+            },
+            width: 320,
+            height: 240
+        });
+        cameraUtils.start();
+
+        // ==========================================
+        // 4. HAND → CAMERA + PHYSICS LOGIC
+        // ==========================================
+        const clock = new THREE.Clock();
+
+        let currentAngleX = 0;
+        let currentAngleY = 0;
+        let currentZoom = 200;
+
+        const state = {
+            autoRotate: true,
+            nebulaEnabled: true,
+            shootingStarsEnabled: true,
+            gravityEnabled: true
+        };
+
+        function cycleColors() {
+            // simple palette cycle
+            const palettes = [
+                ['#ff6030', '#1b3984'],
+                ['#ffe53b', '#ff2525'],
+                ['#00f5ff', '#4b00ff'],
+                ['#ff00ff', '#00ff9d']
+            ];
+            const currentIndex = palettes.findIndex(
+                p => p[0].toLowerCase() === parameters.insideColor.toLowerCase()
+                  && p[1].toLowerCase() === parameters.outsideColor.toLowerCase()
+            );
+            const next = palettes[(currentIndex + 1 + palettes.length) % palettes.length];
+            parameters.insideColor = next[0];
+            parameters.outsideColor = next[1];
+            coreColorInput.value = rgbToHex(parameters.insideColor);
+            edgeColorInput.value = rgbToHex(parameters.outsideColor);
+            generateGalaxy();
+        }
+
+        function rgbToHex(str) {
+            // if already hex, return
+            if (str.startsWith('#')) return str;
+            // assume format like 'rgb(...)' or color name – fallback
+            try {
+                const ctx = document.createElement('canvas').getContext('2d');
+                ctx.fillStyle = str;
+                const col = ctx.fillStyle; // becomes #rrggbb
+                return col;
+            } catch {
+                return '#ffffff';
+            }
+        }
+
+        function applyGravityPull(handWorldPos) {
+            if (!state.gravityEnabled || !galaxyGeometry) return;
+            const positions = galaxyGeometry.attributes.position.array;
+            const len = positions.length / 3;
+            const radiusInfluence = 40;
+            const strength = 0.1;
+
+            for (let i = 0; i < len; i++) {
+                const i3 = i * 3;
+                const x = positions[i3];
+                const y = positions[i3 + 1];
+                const z = positions[i3 + 2];
+
+                const dx = handWorldPos.x - x;
+                const dy = handWorldPos.y - y;
+                const dz = handWorldPos.z - z;
+
+                const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                if (dist < radiusInfluence && dist > 0.01) {
+                    const force = (1 - dist / radiusInfluence) * strength;
+                    positions[i3]     += dx / dist * force;
+                    positions[i3 + 1] += dy / dist * force * 0.5;
+                    positions[i3 + 2] += dz / dist * force;
+                }
+            }
+            galaxyGeometry.attributes.position.needsUpdate = true;
+        }
+
+        function updateShootingStars(dt) {
+            if (!state.shootingStarsEnabled) {
+                shootingStars.forEach(s => s.mesh.visible = false);
+                return;
+            }
+            shootingStars.forEach(s => {
+                s.mesh.visible = true;
+                const pos = s.mesh.geometry.attributes.position.array;
+                const dirX = pos[3] - pos[0];
+                const dirY = pos[4] - pos[1];
+                const dirZ = pos[5] - pos[2];
+
+                const speed = s.speed * dt;
+                pos[0] += dirX * speed * 0.02;
+                pos[1] += dirY * speed * 0.02;
+                pos[2] += dirZ * speed * 0.02;
+                pos[3] += dirX * speed * 0.02;
+                pos[4] += dirY * speed * 0.02;
+                pos[5] += dirZ * speed * 0.02;
+
+                const r2 = pos[0]*pos[0] + pos[2]*pos[2];
+                if (Math.sqrt(r2) < parameters.radius * 0.3) {
+                    resetShootingStar(s.mesh);
+                }
+                s.mesh.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta();
+
+            // Spin galaxy
+            if (state.autoRotate && !freezeRotation) {
+                galaxyPoints.rotation.y += 0.05 * dt;
+            }
+
+            // Rotation & zoom from hands
+            if (isHandDetected) {
+                // Rotation
+                const targetRotX = (handY - 0.5) * 2;
+                const targetRotY = (handX - 0.5) * 4;
+
+                if (!freezeRotation) {
+                    currentAngleX += (targetRotX - currentAngleX) * 0.12;
+                    currentAngleY += (targetRotY - currentAngleY) * 0.12;
+                }
+
+                let targetZoom = currentZoom;
+
+                if (twoHandsDetected && twoHandDistance > 0) {
+                    // Two-hand zoom: map distance 0.1–0.6 to zoom 400–80
+                    const d = Math.max(0.05, Math.min(0.6, twoHandDistance));
+                    targetZoom = 420 - ((d - 0.05) / 0.55) * 340;
+                } else {
+                    // Single hand pinch zoom
+                    const clampedPinch = Math.max(0.02, Math.min(0.3, pinchDistance));
+                    targetZoom = 400 - ((clampedPinch - 0.02) / 0.28) * 350;
+                }
+
+                currentZoom += (targetZoom - currentZoom) * 0.12;
+
+                // Compute a world position from hand screen pos
+                const handWorldPos = new THREE.Vector3(
+                    (handX - 0.5) * parameters.radius * 2,
+                    (0.5 - handY) * parameters.radius * 1.2,
+                    0
+                );
+
+                // Orbit mode visual
+                handSphere.position.copy(handWorldPos);
+                handSphere.visible = true;
+
+                // Gravity if pinching
+                const closePinch = pinchDistance < 0.05;
+                if (closePinch && state.gravityEnabled) {
+                    applyGravityPull(handWorldPos);
+                }
+
+            } else {
+                // Idle: slow camera drift
+                currentAngleX += (0 - currentAngleX) * 0.05;
+                currentAngleY += (Math.sin(clock.getElapsedTime() * 0.4) * 0.5 - currentAngleY) * 0.05;
+                handSphere.visible = false;
+            }
+
+            // Camera orbit from angles/zoom
+            const r = currentZoom;
+            camera.position.x = r * Math.sin(currentAngleY);
+            camera.position.z = r * Math.cos(currentAngleY);
+            camera.position.y = currentAngleX * 100 + 50;
+            camera.lookAt(scene.position);
+
+            // Nebula visibility
+            if (nebulaPoints) nebulaPoints.visible = state.nebulaEnabled;
+
+            // Shooting stars
+            updateShootingStars(dt);
+
+            renderer.render(scene, camera);
+        }
+
+        // ==========================================
+        // 5. UI EVENTS
+        // ==========================================
+        const starCountInput  = document.getElementById('star_count');
+        const coreColorInput  = document.getElementById('core_color');
+        const edgeColorInput  = document.getElementById('edge_color');
+        const toggleSpin      = document.getElementById('toggle_spin');
+        const toggleNebula    = document.getElementById('toggle_nebula');
+        const toggleShooting  = document.getElementById('toggle_shooting');
+        const toggleGravity   = document.getElementById('toggle_gravity');
+
+        starCountInput.addEventListener('input', () => {
+            parameters.count = parseInt(starCountInput.value, 10);
+            generateGalaxy();
+        });
+
+        coreColorInput.addEventListener('input', () => {
+            parameters.insideColor = coreColorInput.value;
+            generateGalaxy();
+        });
+
+        edgeColorInput.addEventListener('input', () => {
+            parameters.outsideColor = edgeColorInput.value;
+            generateGalaxy();
+        });
+
+        toggleSpin.addEventListener('change', () => {
+            state.autoRotate = toggleSpin.checked;
+        });
+
+        toggleNebula.addEventListener('change', () => {
+            state.nebulaEnabled = toggleNebula.checked;
+        });
+
+        toggleShooting.addEventListener('change', () => {
+            state.shootingStarsEnabled = toggleShooting.checked;
+        });
+
+        toggleGravity.addEventListener('change', () => {
+            state.gravityEnabled = toggleGravity.checked;
+        });
+
+        // Resize handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>

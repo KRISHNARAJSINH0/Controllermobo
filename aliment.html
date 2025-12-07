@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive 3D Particles</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #instructions {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            pointer-events: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+   
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        const PARTICLE_COUNT = 8000;
+        const PARTICLE_SIZE = 0.35;
+        const FIELD_spread = 30; 
+        const MOUSE_INFLUENCE_RADIUS = 6;
+        const MOUSE_FORCE = 3;
+        
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050505, 0.02); 
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.z = 20;
+        camera.position.y = 5;
+        camera.lookAt(0, 0, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        document.body.appendChild(renderer.domElement);
+
+        function getTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+            const texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+
+        const particlesGeometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(PARTICLE_COUNT * 3);
+        const originalPositions = new Float32Array(PARTICLE_COUNT * 3); 
+        const colors = new Float32Array(PARTICLE_COUNT * 3);
+
+        const color1 = new THREE.Color(0x00ffff); 
+        const color2 = new THREE.Color(0xff00ff);
+
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            const i3 = i * 3;
+            
+            const x = (Math.random() - 0.5) * FIELD_spread * 2;
+            const y = (Math.random() - 0.5) * FIELD_spread * 0.5; 
+            const z = (Math.random() - 0.5) * FIELD_spread;
+
+            positions[i3] = x;
+            positions[i3 + 1] = y;
+            positions[i3 + 2] = z;
+
+            originalPositions[i3] = x;
+            originalPositions[i3 + 1] = y;
+            originalPositions[i3 + 2] = z;
+
+
+            colors[i3] = color1.r;
+            colors[i3 + 1] = color1.g;
+            colors[i3 + 2] = color1.b;
+        }
+
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const particlesMaterial = new THREE.PointsMaterial({
+            size: PARTICLE_SIZE,
+            map: getTexture(),
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            transparent: true
+        });
+
+        const particleSystem = new THREE.Points(particlesGeometry, particlesMaterial);
+        scene.add(particleSystem);
+
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2(9999, 9999); 
+        const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0); 
+        const planeNormal = new THREE.Vector3(0, 0, 1);
+        const mousePosition3D = new THREE.Vector3();
+
+        window.addEventListener('mousemove', (event) => {
+            
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        const clock = new THREE.Clock();
+
+        function animate() {
+            const time = clock.getElapsedTime();
+
+
+            raycaster.setFromCamera(mouse, camera);
+            raycaster.ray.intersectPlane(plane, mousePosition3D);
+
+            const positions = particlesGeometry.attributes.position.array;
+            const colors = particlesGeometry.attributes.color.array;
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const i3 = i * 3;
+
+
+                let px = positions[i3];
+                let py = positions[i3 + 1];
+                let pz = positions[i3 + 2];
+
+                const ox = originalPositions[i3];
+                const oy = originalPositions[i3 + 1];
+                const oz = originalPositions[i3 + 2];
+
+
+                const waveY = Math.sin(time * 0.5 + ox * 0.2) * 0.5;
+                
+                const targetX = ox;
+                const targetY = oy + waveY;
+                const targetZ = oz;
+
+                const dx = mousePosition3D.x - px;
+                const dy = mousePosition3D.y - py;
+                
+                const distSq = dx * dx + dy * dy;
+                const dist = Math.sqrt(distSq);
+
+                let forceX = 0;
+                let forceY = 0;
+                let forceZ = 0;
+
+                if (dist < MOUSE_INFLUENCE_RADIUS) {
+                    const force = (1 - dist / MOUSE_INFLUENCE_RADIUS) * MOUSE_FORCE;
+                    forceX = -(dx / dist) * force;
+                    forceY = -(dy / dist) * force;
+                    forceZ = -((0 - pz) / dist) * force * 2; 
+
+                    colors[i3] = THREE.MathUtils.lerp(colors[i3], color2.r, 0.1);
+                    colors[i3+1] = THREE.MathUtils.lerp(colors[i3+1], color2.g, 0.1);
+                    colors[i3+2] = THREE.MathUtils.lerp(colors[i3+2], color2.b, 0.1);
+                } else {
+                    colors[i3] = THREE.MathUtils.lerp(colors[i3], color1.r, 0.05);
+                    colors[i3+1] = THREE.MathUtils.lerp(colors[i3+1], color1.g, 0.05);
+                    colors[i3+2] = THREE.MathUtils.lerp(colors[i3+2], color1.b, 0.05);
+                }
+                px += (targetX - px) * 0.05 + forceX * 0.1;
+                py += (targetY - py) * 0.05 + forceY * 0.1;
+                pz += (targetZ - pz) * 0.05 + forceZ * 0.1;
+
+                positions[i3] = px;
+                positions[i3 + 1] = py;
+                positions[i3 + 2] = pz;
+            }
+
+            particlesGeometry.attributes.position.needsUpdate = true;
+            particlesGeometry.attributes.color.needsUpdate = true;
+            
+            particleSystem.rotation.y = time * 0.05;
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
